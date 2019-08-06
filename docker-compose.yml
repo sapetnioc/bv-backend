@@ -1,16 +1,31 @@
 version: '3.7'
 
+networks:
+  web:
+    external: true
+
 services:
   bv_proxy:
     container_name: bv_proxy
-    image: traefik # The official Traefik docker image
-    #command: --api --docker # Enables the web UI and tells Traefik to listen to docker
+    image: traefik
     ports:
-      - "8000:80"     # The HTTP port
-      - "8080:8080" # The Web UI (enabled by --api)
+      - "80:80" 
+      - "443:443"
+    networks:
+      - web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
       - ./traefik.toml:/etc/traefik/traefik.toml
+      - ./acme.jso:/etc/traefik/acme.json
+      - /etc/letsencrypt/live/cointepas.net/privkey.pem:/etc/traefik/privkey.pem
+      - /etc/letsencrypt/live/cointepas.net/fullchain.pem:/etc/traefik/fullchain.pem
+    labels:
+        traefik.docker.network: web
+        traefik.enable: true
+        traefik.traefik.frontend.rule: "PathPrefixStrip: /traefik"
+        traefik.traefik.port: 8080
+        traefik.traefik.protocol: http
+      
 
   bv_postgres:
     container_name: bv_postgres
@@ -20,6 +35,8 @@ services:
     hostname: bv_postgres
     volumes:
         - bv_services:/bv_services
+    networks:
+      - web
   
   bv_auth:
     container_name: bv_auth
@@ -34,10 +51,13 @@ services:
     links:
     - bv_postgres
     labels:
+        traefik.docker.network: web
         traefik.enable: true
-        #traefik.frontend.redirect.regex: "^http://localhost:8000/auth/(.*)"
-        #traefik.frontend.redirect.replacement: "http://127.0.0.1/$$1"
-        traefik.frontend.rule: "PathPrefixStrip: /auth"
+        traefik.basic.frontend.rule: "PathPrefixStrip: /auth"
+        traefik.basic.port: 80
+        traefik.basic.protocol: http
+    networks:
+      - web
 
 volumes:
     bv_services:
