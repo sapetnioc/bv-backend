@@ -1,0 +1,43 @@
+version: '3.7'
+
+services:
+  bv_proxy:
+    container_name: bv_proxy
+    image: traefik # The official Traefik docker image
+    #command: --api --docker # Enables the web UI and tells Traefik to listen to docker
+    ports:
+      - "8000:80"     # The HTTP port
+      - "8080:8080" # The Web UI (enabled by --api)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
+      - ./traefik.toml:/etc/traefik/traefik.toml
+
+  bv_postgres:
+    container_name: bv_postgres
+    image: bv_postgres
+    build:
+        context: ./bv_postgres
+    hostname: bv_postgres
+    volumes:
+        - bv_services:/bv_services
+  
+  bv_auth:
+    container_name: bv_auth
+    image: bv_auth
+    build:
+        context: ./bv_auth
+    hostname: bv_auth
+    volumes:
+        - bv_services:/bv_services
+        - ./bv_rest/bv_rest:/tmp/bv_rest # DEBUG
+        - ./bv_auth/bv_auth:/tmp/bv_auth # DEBUG
+    links:
+    - bv_postgres
+    labels:
+        traefik.enable: true
+        #traefik.frontend.redirect.regex: "^http://localhost:8000/auth/(.*)"
+        #traefik.frontend.redirect.replacement: "http://127.0.0.1/$$1"
+        traefik.frontend.rule: "PathPrefixStrip: /auth"
+
+volumes:
+    bv_services:
