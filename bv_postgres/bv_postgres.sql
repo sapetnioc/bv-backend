@@ -31,6 +31,13 @@ CREATE TABLE session
 (
     id TEXT PRIMARY KEY,
     login TEXT NOT NULL REFERENCES identity ON UPDATE CASCADE,
+    creation_time TIMESTAMP,
+    last_used TIMESTAMP
+);
+
+CREATE TABLE user_roles_cache
+(
+    login TEXT PRIMARY KEY REFERENCES identity ON UPDATE CASCADE,
     roles TEXT[]
 );
 

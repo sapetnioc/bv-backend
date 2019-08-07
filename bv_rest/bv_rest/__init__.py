@@ -30,12 +30,35 @@ def get_roles():
             payload = jwt.decode(token, public_key, issuer='bv_auth', algorithm='RS256')
         except:
             abort(401)
-        session_id = payload.get('sub','')
-        with get_cursor('bv_services') as cur:
-            sql = 'SELECT roles FROM session WHERE id=%s'
-            cur.execute(sql, [session_id])
-            if cur.rowcount:
-                return set(cur.fetchone()[0])
+        login = payload.get('login')
+        sql = 'SELECT roles FROM user_roles_cache WHERE login=%s'
+        cursor.execute(sql, [login])
+        if cursor.rowcount:
+            return set(cursor.fetchone()[0])
+        else:
+            sql = 'SELECT role, given_to, inherit FROM granting'
+            cur.execute(sql)
+            grantings = {}
+            links = {}
+            for role, given_to, inherit in cur:
+                grantings.setdefault(given_to, set()).add(role)
+                if inherit:
+                    links.setdefault(given_to, set()).add(role)
+            user_role = f'${login}'
+            roles = {user_role}
+            roles.update(grantings.get(user_role, set()))
+            new_roles = set()
+            while True:
+                for role in roles:
+                    new_roles.add(role)
+                    for linked_role in links.get(role, set()):
+                        new_roles.update(grantings.get(linked_role, set()))
+                if new_roles == roles:
+                    break
+                roles = new_roles
+            sql = 'INSERT INTO user_roles_cache (login, roles) VALUES (%s, %s)'
+            cursor.execute(sql, [login, list(roles)])
+            return roles
     abort(401)
 
 class RestAPI:

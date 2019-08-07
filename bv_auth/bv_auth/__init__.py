@@ -64,37 +64,17 @@ def init_api(api):
             if cur.rowcount:
                 password_hash = cur.fetchone()[0]
                 if verify_password(password_hash, password):
-                    sql = 'SELECT role, given_to, inherit FROM granting'
-                    cur.execute(sql)
-                    grantings = {}
-                    links = {}
-                    for role, given_to, inherit in cur:
-                        grantings.setdefault(given_to, set()).add(role)
-                        if inherit:
-                            links.setdefault(given_to, set()).add(role)
-                    user_role = f'${login}'
-                    roles = {user_role}
-                    roles.update(grantings.get(user_role, set()))
-                    new_roles = set()
-                    while True:
-                        for role in roles:
-                            new_roles.add(role)
-                            for linked_role in links.get(role, set()):
-                                new_roles.update(grantings.get(linked_role, set()))
-                        if new_roles == roles:
-                            break
-                        roles = new_roles
                     session_id = secrets.token_urlsafe()
                     sql = 'DELETE FROM session WHERE login=%s'
                     cur.execute(sql, [login])
-                    sql = 'INSERT INTO session (id, login, roles) VALUES (%s, %s, %s)'
-                    cur.execute(sql, [session_id, login, list(roles)])
                     now = datetime.datetime.utcnow()
-                    obsolete = now + datetime.timedelta(minutes=30)
+                    sql = 'INSERT INTO session (id, login, creation_time) VALUES (%s, %s, %s)'
+                    cur.execute(sql, [session_id, login, now])
+                    now = datetime.datetime.utcnow()
                     payload = {'sub': session_id,
                             'iss': 'bv_auth',
                             'iat': now,
-                            'exp': obsolete,
+                            'login': login,
                             }
                     private_key = open('/bv_auth/id_rsa').read()
                     api_key = jwt.encode(payload, private_key, algorithm='RS256').decode('utf8')
@@ -126,7 +106,7 @@ def init_api(api):
     def post(identity : NewIdentity) -> Identity:
         '''Create a new identity'''
         with get_cursor('bv_services') as cur:
-            time = datetime.datetime.now()
+            time = datetime.datetime.utcnow()
             identity['activation_time'] = time
             identity['email_verification_time'] = time
             identity['registration_time'] = time
