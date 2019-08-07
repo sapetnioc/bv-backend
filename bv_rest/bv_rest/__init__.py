@@ -1,14 +1,17 @@
 import datetime
 from collections import OrderedDict
-from functools import partial
+from functools import partial, wraps
 import inspect
 import re
 import traceback
 import typing
 import uuid
 
-from flask import jsonify, request
+from flask import jsonify, request, abort
+import jwt
 from  werkzeug.exceptions import HTTPException, HTTP_STATUS_CODES
+
+from bv_rest.database import get_cursor
 
 class ServicesConfig:
     @property
@@ -18,6 +21,45 @@ class ServicesConfig:
         return '/bv_services'
     
 config = ServicesConfig()
+
+def get_roles():
+    token = request.headers.get('api_key')
+    if token:
+        public_key = open('/bv_auth/id_rsa.pub').read()
+        try:
+            payload = jwt.decode(token, public_key, issuer='bv_auth', algorithm='RS256')
+        except:
+            abort(401)
+        login = payload.get('login')
+        sql = 'SELECT roles FROM user_roles_cache WHERE login=%s'
+        cursor.execute(sql, [login])
+        if cursor.rowcount:
+            return set(cursor.fetchone()[0])
+        else:
+            sql = 'SELECT role, given_to, inherit FROM granting'
+            cur.execute(sql)
+            grantings = {}
+            links = {}
+            for role, given_to, inherit in cur:
+                grantings.setdefault(given_to, set()).add(role)
+                if inherit:
+                    links.setdefault(given_to, set()).add(role)
+            user_role = f'${login}'
+            roles = {user_role}
+            roles.update(grantings.get(user_role, set()))
+            new_roles = set()
+            while True:
+                for role in roles:
+                    new_roles.add(role)
+                    for linked_role in links.get(role, set()):
+                        new_roles.update(grantings.get(linked_role, set()))
+                if new_roles == roles:
+                    break
+                roles = new_roles
+            sql = 'INSERT INTO user_roles_cache (login, roles) VALUES (%s, %s)'
+            cursor.execute(sql, [login, list(roles)])
+            return roles
+    abort(401)
 
 class RestAPI:
     class Path:
@@ -111,7 +153,12 @@ class RestAPI:
     def require_role(self, role):
         def decorator(function):
             function.has_security = True
-            return function
+            @wraps(function)
+            def wrapper(*args, **kwargs):
+                if role not in get_roles():
+                    abort(403)
+                return function(*args, **kwargs)
+            return self.may_abort(401)(self.may_abort(403)(wrapper))
         return decorator
             
     def may_abort(self, http_code):
