@@ -69,14 +69,15 @@ class RestAPI:
                             kwargs = request.get_json(force=True)
                         result = function(*args, **kwargs)
                         try:
-                            json_result = jsonify(result)
+                            response = jsonify(result)
                         except Exception as e:
                             error = {
                                 'message': 'Value cannot be converted to JSON (%s): %s' % (str(e), repr(result)),
                                 'traceback': traceback.format_exc(),
                             }
                             return error, 500
-                        return json_result
+                        response.headers['Access-Control-Allow-Origin'] = '*'
+                        return response
                     except HTTPException:
                         raise
                     except Exception as e:
