@@ -11,15 +11,15 @@ defaultEntryPoints = ["https","http"]
   [entryPoints.https]
   address = ":443"
   [entryPoints.https.tls]
-#     [[entryPoints.https.tls.certificates]]
-#       certFile = "/etc/traefik/fullchain.pem"
-#       keyFile = "/etc/traefik/privkey.pem"
+    [[entryPoints.https.tls.certificates]]
+      certFile = "/etc/traefik/fullchain.pem"
+      keyFile = "/etc/traefik/privkey.pem"
 
 [retry]
 
 [docker]
 endpoint = "unix:///var/run/docker.sock"
-# domain = "cointepas.net"
+domain = "cointepas.net"
 watch = true
 exposedByDefault = false
 
