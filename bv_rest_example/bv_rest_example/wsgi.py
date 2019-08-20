@@ -18,9 +18,9 @@ def create_app(test_config=None):
     app = Flask(app_name, instance_path=osp.join(bv_rest.config.services_dir, app_name), instance_relative_config=True)
 
     api = bv_rest.RestAPI(app,
-        title='bv_rest_exmple',
-        description='Example of REST services',
-        version='0.0.1',
+        title='Random REST data example',
+        description='Random generated data exposed via a *RESTful* API',
+        version='1.0.0',
     )
 
     bv_rest.init_api(api)
