@@ -1,20 +1,20 @@
 FROM bv_rest
 
-COPY setup.py /tmp
-ADD bv_rest_example /tmp/bv_rest_example
-
-RUN \
-#     cd /tmp && python setup.py install && rm -R /tmp/setup.py /tmp/bv_auth
-    cd /tmp && python setup.py develop # DEBUG
-
 RUN pip install gunicorn
 
-# CMD gunicorn -b 0.0.0.0:80 bv_auth.wsgi
+COPY setup.py /tmp
+ADD bv_rest_example /tmp/bv_rest_example
 
 COPY subjects.json /bv_rest_example/subjects.json
 COPY centers.json /bv_rest_example/centers.json
 COPY data.json /bv_rest_example/data.json
 COPY visits.json /bv_rest_example/visits.json
+
+RUN \
+    cd /tmp && python setup.py develop # TODO modify to be compatible with local files
+
+
+CMD gunicorn -b 0.0.0.0:80 bv_auth.wsgi
 
 ENV FLASK_APP=bv_rest_example.wsgi
 ENV FLASK_ENV=development
