@@ -60,5 +60,14 @@ services:
     networks:
       - web
 
+  bv_rest_example:
+    container_name: bv_rest_example
+    image: bv_rest_example
+    build:
+        context: ./bv_rest_example
+    hostname: bv_rest_example
+    networks:
+      - web
+
 volumes:
     bv_services:
