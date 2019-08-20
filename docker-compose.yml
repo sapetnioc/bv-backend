@@ -14,7 +14,7 @@ services:
     networks:
       - web
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik.toml:/etc/traefik/traefik.toml
       - ./acme.jso:/etc/traefik/acme.json
       - /etc/letsencrypt/live/cointepas.net/privkey.pem:/etc/traefik/privkey.pem
@@ -45,6 +45,7 @@ services:
         context: ./bv_auth
     hostname: bv_auth
     volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
         - bv_services:/bv_services
         - ./bv_rest/bv_rest:/tmp/bv_rest # DEBUG
         - ./bv_auth/bv_auth:/tmp/bv_auth # DEBUG

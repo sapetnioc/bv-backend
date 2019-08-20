@@ -6,6 +6,7 @@ from flask import current_app
 import psycopg2
 import psycopg2.extras
 
+import bv_rest
 
 class ConnectionPool:
     class ConnectionRecord:
@@ -112,5 +113,5 @@ def get_cursor(database, as_dict=False):
 
 def init_app(app):
     app.db_pool = ConnectionPool()
-    app.postgres_user = open('/bv_services/postgres_user').read().strip()
-    app.postgres_password=open('/bv_services/postgres_password').read()
+    app.postgres_user = bv_rest.config.postgres_user
+    app.postgres_password = bv_rest.config.postgres_password

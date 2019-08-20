@@ -2,12 +2,15 @@ import datetime
 from collections import OrderedDict
 from functools import partial, wraps
 import inspect
+import os.path as osp
 import re
 import traceback
 import typing
 import uuid
 
-from flask import jsonify, request, abort
+from flask import (jsonify, request, abort, make_response,
+                   render_template_string, send_from_directory,
+                   has_request_context)
 import jwt
 from  werkzeug.exceptions import HTTPException, HTTP_STATUS_CODES
 
@@ -20,6 +23,15 @@ class ServicesConfig:
         # used in a container with always the same value.
         return '/bv_services'
     
+    @property
+    def postgres_user(self):
+        return open(osp.join(self.services_dir, 'postgres_user')).read().strip()
+
+    @property
+    def postgres_password(self):
+        return open(osp.join(self.services_dir, 'postgres_password')).read()
+
+
 config = ServicesConfig()
 
 def get_roles():
@@ -65,7 +77,8 @@ class RestAPI:
     class Path:
         def __init__(self, path):
             self.path = path
-            self.path_parameters = [i.group(0)[1:-1] for i in re.finditer(r'\{\w*\}', self.path)]
+            self.path_parameters = [i.group(0)[1:-1].split(':',1)[-1] 
+                                    for i in re.finditer(r'<[^>]*>', self.path)]
             
             self.get = None
             self.post = None
@@ -97,37 +110,60 @@ class RestAPI:
                 argspec = inspect.getfullargspec(function)
                 json_args = [i for i in argspec.args if i not in self.path.path_parameters]
                 function.json_args = json_args
+                function.path_parameters = self.path.path_parameters
                 
                 @self.api.flask_app.route(self.path.path, 
                                           endpoint=self.id,
-                                          methods=[http_method.upper()])
-                def f():
-                    try:
-                        args = ()
-                        kwargs = {}
-                        if function.param_in_body:
-                            args = (request.get_json(force=True),)
-                        elif function.json_args:
-                            kwargs = request.get_json(force=True)
-                        result = function(*args, **kwargs)
+                                          methods=[http_method.upper(), 'OPTIONS'])
+                @wraps(function)
+                def wrapper(**kwargs):
+                    if request.method == 'OPTIONS':
+                        # Handle options is necessary to allow web pages that
+                        # are not on the same server (e.g. local pages) to use 
+                        # the API. See 
+                        # https://www.html5rocks.com/en/tutorials/cors/
+                        acrh = request.headers['Access-Control-Request-Headers']
+                        response = make_response('', 200)
+                        response.headers['Access-Control-Allow-Origin'] = '*'
+                        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST'
+                        response.headers['Access-Control-Allow-Headers'] = acrh
+                    else:
                         try:
-                            response = jsonify(result)
+                            response = None
+                            args = ()
+                            try:
+                                if function.param_in_body:
+                                    args = (request.get_json(force=True),)
+                                elif function.json_args:
+                                    kwargs.update(request.get_json(force=True))
+                            except Exception as e:
+                                error = {
+                                    'message': 'Request does not contain valid JSON',
+                                }
+                                response = make_response(error, 400)
+                            if response is None:
+                                result = function(*args, **kwargs)
+                                try:
+                                    response = jsonify(result)
+                                except Exception as e:
+                                    error = {
+                                        'message': 'Value cannot be converted to JSON (%s): %s' % (str(e), repr(result)),
+                                        'traceback': traceback.format_exc(),
+                                    }
+                                    response = make_response(error, 500)
+                        except HTTPException as e:
+                            error = {
+                                'message': str(e),
+                            }
+                            response = make_response(error, e.code)
                         except Exception as e:
                             error = {
-                                'message': 'Value cannot be converted to JSON (%s): %s' % (str(e), repr(result)),
+                                'message': '%s: %s' % (e.__class__.__name__, str(e)),
                                 'traceback': traceback.format_exc(),
                             }
-                            return error, 500
-                        response.headers['Access-Control-Allow-Origin'] = '*'
-                        return response
-                    except HTTPException:
-                        raise
-                    except Exception as e:
-                        error = {
-                            'message': '%s: %s' % (e.__class__.__name__, str(e)),
-                            'traceback': traceback.format_exc(),
-                        }
-                        return error, 500 
+                            response = make_response(error, 500)
+                    response.headers['Access-Control-Allow-Origin'] = '*'
+                    return response
                 
                 return function
 
@@ -205,6 +241,9 @@ class RestAPI:
                 ])),
             ])),
         ])
+        if has_request_context():
+            result['servers'] = [{'url': f'{request.headers["X-Forwarded-Proto"]}://{request.headers["X-Forwarded-Host"]}{request.headers["X-Forwarded-Prefix"]}'}]
+            
         for cls in self.schemas:
             if len(cls.__bases__) != 1:
                 raise TypeError('Open API implementation does not support multiple inheritance')
@@ -284,7 +323,7 @@ class RestAPI:
                     for http_code in getattr(function, 'may_abort', []):
                         responses[str(http_code)] = OrderedDict([
                                 ('description', HTTP_STATUS_CODES[http_code]),
-                                ('content', {'text/html': {'schema': {'type': 'string'}}}),
+                                ('content', {'application/json': {'schema': {'$ref': '#/components/schemas/Exception'}}}),
                             ])
                         
                     responses['default'] = OrderedDict([
@@ -304,6 +343,8 @@ class RestAPI:
     _type_to_open_api = {
         str: ('string', None),
         bytes: ('string', 'byte'),
+        int: ('integer', 'int64'),
+        float: ('number', 'double'),
         datetime.date: ('string', 'date'),
         datetime.datetime: ('string', 'date-time'),
     }
@@ -340,3 +381,11 @@ def init_api(api):
         'Return an OpenAPI 3.0.2 specification for this API'
         return api.open_api
     
+    @api.flask_app.route('/')
+    def swagger_ui():
+        return render_template_string(open(osp.join(osp.dirname(__file__), 'swagger-ui.html')).read())
+
+    @api.flask_app.route('/api/<path:filename>')
+    def swagger_ui_files(filename):
+        return send_from_directory(osp.join(osp.dirname(__file__), 'swagger-ui'),
+                                   filename)

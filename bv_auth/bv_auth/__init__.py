@@ -2,7 +2,9 @@ import binascii
 import datetime
 import hashlib
 import os
+import re
 import secrets
+import subprocess
 from typing import Optional, NoReturn, List
 
 import flask
@@ -122,3 +124,36 @@ def init_api(api):
             os.remove(hash_file)
             flask.abort(403)
         flask.abort(404)
+
+
+    @api.path('/databases')
+    #@api.require_role('database_admin')
+    def get() -> List[str]:
+        '''List all dtabases'''
+        with get_cursor('bv_services') as cur:
+            sql = "SELECT datname FROM pg_database WHERE datistemplate IS FALSE AND datname != 'postgres'"
+            cur.execute(sql)
+            return [row[0] for row in cur]
+    
+    @api.path('/databases/<database>/tables')
+    #@api.require_role('database_admin')
+    def get(database: str) -> List[str]:
+        '''List all tables of a database'''
+        with get_cursor('bv_services') as cur:
+            sql = '''SELECT schemaname, tablename 
+                     FROM pg_tables 
+                     WHERE schemaname NOT IN ('pg_catalog', 
+                                              'information_schema')'''
+            cur.execute(sql)
+            return [(row[1] if row[0] == 'public' else f'{row[0]}.{row[1]}') for row in cur]
+    
+
+    @api.path('/databases/<database>/schema')
+    #@api.require_role('database_admin')
+    def get(database: str) -> str:
+        '''Return the schema of a database in SQL format'''
+        output = subprocess.check_output([
+            'docker', 'exec', 'bv_postgres', 'pg_dump','-U', 
+            flask.current_app.postgres_user, '-d', 'bv_services', '-s'])
+        return re.sub(r'^--[^\n]*\n', '', output.decode('utf8'), 0, re.MULTILINE).strip().replace('\n\n\n', '\n\n')
+    
