@@ -6,6 +6,7 @@ import re
 import typing
 import uuid
 
+from decorator import decorator
 from flask import jsonify
 
 class RestAPI:
@@ -23,31 +24,25 @@ class RestAPI:
         def __init__(self, api, path):
             self.api = api
             self.path = path
-            self.param_in_body = False
             
-        def __call__(self, function=None, 
-                     param_in_body=False):
-            if function is None:
-                self.param_in_body = param_in_body
-                return self
-            else:
-                self.id = str(uuid.uuid4())
-                http_method = function.__name__
-                if http_method not in ('get', 'post', 'put', 'delete'):
-                    raise NameError('%s is not a valid function name to guess HTTP method, use get, post, put or delete.' % http_method)        
-                if getattr(self.path, http_method) is not None:
-                    raise NameError('A function is already defined for HTTP method %s on route %s' % (method, self.path))
-                
-                function.param_in_body = self.param_in_body
-                setattr(self.path, http_method, function)
-                
-                @self.api.flask_app.route(self.path.path, 
-                                          endpoint=self.id,
-                                          methods=[http_method.upper()])
-                def f():
-                    return jsonify(function())
-                
-                return function
+        def __call__(self, function):
+            self.id = str(uuid.uuid4())
+            http_method = function.__name__
+            if http_method not in ('get', 'post', 'put', 'delete'):
+                raise NameError('%s is not a valid function name to guess HTTP method, use get, post, put or delete.' % http_method)        
+            if getattr(self.path, http_method) is not None:
+                raise NameError('A function is already defined for HTTP method %s on route %s' % (method, self.path))
+            
+            function.param_in_body = getattr(function, 'param_in_body', false)
+            setattr(self.path, http_method, function)
+            
+            @self.api.flask_app.route(self.path.path, 
+                                      endpoint=self.id,
+                                      methods=[http_method.upper()])
+            def f():
+                return jsonify(function())
+            
+            return function
 
     def __init__(self, flask_app, title, description, version):
         self.flask_app = flask_app
@@ -67,6 +62,10 @@ class RestAPI:
             path_obj = self.Path(path)
             self.paths[path] = path_obj
         return self.Operation(self, path_obj)
+    
+    @static_method
+    def param_in_body(function):
+        function.param_in_body = true
     
     @property
     def open_api(self):

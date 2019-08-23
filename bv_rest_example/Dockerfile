@@ -2,23 +2,14 @@ FROM bv_rest
 
 RUN pip install gunicorn
 
-COPY setup.py /tmp
-ADD bv_rest_example /tmp/bv_rest_example
-
-COPY subjects.json /bv_rest_example/subjects.json
-COPY centers.json /bv_rest_example/centers.json
-COPY data.json /bv_rest_example/data.json
-COPY visits.json /bv_rest_example/visits.json
-
-RUN \
-    cd /tmp && python setup.py develop # TODO modify to be compatible with local files
+RUN mkdir /src
+COPY setup.py /src
+ADD bv_rest_example /src/bv_rest_example
+RUN cd /src && python setup.py develop
 
 
-CMD gunicorn -b 0.0.0.0:80 bv_auth.wsgi
+CMD gunicorn -b 0.0.0.0:80 bv_rest_example.wsgi
 
-ENV FLASK_APP=bv_rest_example.wsgi
-ENV FLASK_ENV=development
-CMD flask run --host=0.0.0.0 --port 80
 
 LABEL traefik.docker.network="web"
 LABEL traefik.enable="true"

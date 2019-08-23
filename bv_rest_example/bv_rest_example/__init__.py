@@ -1,3 +1,5 @@
+import os.path as osp
+
 import datetime
 import json
 from typing import List
@@ -34,22 +36,22 @@ def init_api(api):
     @api.path('/subjects')
     def get() -> List[Subject]:
         '''List all subjects'''
-        return json.load(open('/bv_rest_example/subjects.json'))
+        return json.load(open(osp.join(osp.dirname(__file__), 'subjects.json')))
     
     
     @api.path('/centers')
     def get() -> List[Center]:
         '''List all centers'''
-        return json.load(open('/bv_rest_example/centers.json'))
+        return json.load(open(osp.join(osp.dirname(__file__), 'centers.json')))
 
 
     @api.path('/data')
     def get() -> List[Data]:
         '''List all data'''
-        return json.load(open('/bv_rest_example/data.json'))
+        return json.load(open(osp.join(osp.dirname(__file__), 'data.json')))
 
 
     @api.path('/visits')
     def get() -> List[Visit]:
         '''List all visits'''
-        return json.load(open('/bv_rest_example/visits.json'))
+        return json.load(open(osp.join(osp.dirname(__file__), 'visits.json')))

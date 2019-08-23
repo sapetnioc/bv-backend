@@ -10,11 +10,9 @@ RUN \
  apk --purge del .build-deps
 
 
-COPY setup.py /tmp
-ADD bv_rest /tmp/bv_rest
+COPY setup.py /bv_services/src/setup.py
+ADD bv_rest /bv_services/src/bv_rest
 
-RUN \
-#     cd /tmp && python setup.py install && rm -R /tmp/setup.py /tmp/bv_rest
-    cd /tmp && python setup.py develop && rm -R /tmp/setup.py # DEBUG
+RUN cd /bv_services/src && python setup.py develop && rm setup.py
 
 EXPOSE 80

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+docker stop bv_admin bv_postgres bv_traefik  

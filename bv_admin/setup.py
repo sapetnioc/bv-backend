@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='bv_rest',
+    name='bv_admin',
     version='0.0.1',
-    description='OpenAPI compatible JSON/REST API definition with flask',
+    description='Project and users administration for BrainVISA services',
     classifiers=[
         'Programming Language :: Python',
         "Programming Language :: Python :: 3",
@@ -12,11 +12,6 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
     ],
     keywords='rest web flask',
-    packages=['bv_rest'],
-    install_requires=[
-        'flask >= 1.0',
-        'psycopg2-binary >= 2.7',
-        'gunicorn',
-        'decorator',
-    ],
+    packages=['bv_admin'],
+    install_requires=['bv_rest'],
 )

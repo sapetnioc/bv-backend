@@ -33,26 +33,30 @@ def verify_password(hashed_password, provided_password):
 
 def init_api(api):
     @api.schema
-    class NewIdentity:
+    class Identity:
         login: str
-        password: bytes
         email: str
         first_name: Optional[str]
         last_name: Optional[str]
         institution: Optional[str]
-
-    @api.schema
-    class Identity(NewIdentity):
         registration_time: Optional[datetime.datetime]
         email_verification_time: Optional[datetime.datetime]
         activation_time: Optional[datetime.datetime]
         deactivation_time: Optional[datetime.datetime]
 
+    @api.schema
+    class NewIdentity:
+        login: str
+        password: str
+        email: str
+        first_name: Optional[str]
+        last_name: Optional[str]
+        institution: Optional[str]
 
     @api.path('/public_key')
     def get() -> str:
         '''Return the public key of the authorization server'''
-        return open('/bv_auth/id_rsa.pub').read()
+        return open('/bv_admin/id_rsa.pub').read()
     
     @api.path('/api_key')
     @api.may_abort(401)
@@ -74,25 +78,15 @@ def init_api(api):
                     cur.execute(sql, [session_id, login, now])
                     now = datetime.datetime.utcnow()
                     payload = {'sub': session_id,
-                            'iss': 'bv_auth',
+                            'iss': 'bv_admin',
                             'iat': now,
                             'login': login,
                             }
-                    private_key = open('/bv_auth/id_rsa').read()
+                    private_key = open('/bv_admin/id_rsa').read()
                     api_key = jwt.encode(payload, private_key, algorithm='RS256').decode('utf8')
                     return api_key
         flask.abort(401, 'Invalid login or password')
 
-    @api.path('/sessions')
-    @api.require_role('identity_admin')
-    def get() -> List[str]:
-        '''List all identities'''
-        with get_cursor('bv_services', as_dict=True) as cur:
-            sql = 'SELECT * FROM session'
-            cur.execute(sql)
-            return cur.fetchall()
-    
-    
     @api.path('/identities')
     @api.require_role('identity_admin')
     def get() -> List[Identity]:
@@ -101,10 +95,11 @@ def init_api(api):
             sql = 'SELECT login, email, first_name, last_name, institution, registration_time, email_verification_time, activation_time, deactivation_time FROM identity'
             cur.execute(sql)
             return cur.fetchall()
-    
-    
+
+
     @api.path('/identities')
     @api.require_role('identity_admin')
+    @api.param_in_body
     def post(identity : NewIdentity) -> Identity:
         '''Create a new identity'''
         with get_cursor('bv_services') as cur:
@@ -124,6 +119,16 @@ def init_api(api):
             os.remove(hash_file)
             flask.abort(403)
         flask.abort(404)
+
+
+    @api.path('/sessions')
+    @api.require_role('identity_admin')
+    def get() -> List[str]:
+        '''List all identities'''
+        with get_cursor('bv_services', as_dict=True) as cur:
+            sql = 'SELECT * FROM session'
+            cur.execute(sql)
+            return cur.fetchall()
 
 
     @api.path('/databases')

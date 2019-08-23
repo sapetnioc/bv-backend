@@ -1,0 +1,125 @@
+#!/bin/sh
+
+
+# args=
+update=
+debug=
+while [ $# -gt 0 ] 
+do
+  key="$1"
+
+  case $key in
+    -u|--update)
+      update=yes
+      shift
+      ;;
+
+      -d|--debug)
+      update=yes
+      shift
+      ;;
+#     -s|--searchpath)
+#       SEARCHPATH="$2"
+#       shift
+#       shift
+#       ;;
+#     *)    # unknown option
+#     args+=("$1")
+#     shift
+#     ;;
+  esac
+done
+
+# Absolute path of the directory containing this script
+here=$( cd $( dirname $0 ) && pwd -P )
+
+rest_image=`docker images --filter reference=bv_rest --format '{{.ID}}'`
+if [ -z "$rest_image" -o -n "$update" ]; then
+    echo 'Creating/updating bv_rest image'
+    docker build -t bv_rest "$here/bv_rest"
+    rest_image=`docker images --filter reference=bv_rest --format '{{.ID}}'`
+fi
+
+postgres_image=`docker images --filter reference=bv_postgres --format '{{.ID}}'`
+if [ -z "$postgres_image" -o -n "$update" ]; then
+    echo 'Creating/updating bv_postgres image'
+    docker build -t bv_postgres "$here/bv_postgres"
+    postgres_image=`docker images --filter reference=bv_postgres --format '{{.ID}}'`
+fi
+
+admin_image=`docker images --filter reference=bv_admin --format '{{.ID}}'`
+if [ -z "$admin_image" -o -n "$update" ]; then
+    echo 'Creating/updating bv_admin image'
+    docker build -t bv_admin "$here/bv_admin"
+    admin_image=`docker images --filter reference=bv_admin --format '{{.ID}}'`
+fi
+
+network=`docker network ls --filter name=bv_services --format '{{ .ID }}'`
+if [ -z "$network" ]; then
+    echo 'Creating bv_services network'
+    docker network create bv_services
+    network=`docker network ls --filter name=bv_services --format '{{ .ID }}'`
+fi
+
+volume=`docker volume ls --filter name=bv_services --format '{{ .Name }}'`
+if [ -z "$volume" ]; then
+    echo 'Creating bv_services volume'
+    docker volume create --label bv_services=true bv_services
+    docker run -v bv_services:/bv_services --rm python:3.7-alpine python -c 'import secrets, os; os.path.exists("/bv_services/postgres_password") or open("/bv_services/postgres_password", "w").write(secrets.token_urlsafe())'
+    docker run -v bv_services:/bv_services --rm python:3.7-alpine sh -c 'echo bv_services > /bv_services/postgres_user && chmod a+r /bv_services/postgres_user /bv_services/postgres_password'
+    volume=`docker volume ls --filter name=bv_services --format '{{ .Name }}'`
+fi
+
+traefik=`docker ps -a --filter 'name=bv_traefik' --format '{{ .ID }}'`
+if [ -z "$traefik" ]; then
+    echo 'Creating bv_traefik container'
+    docker create \
+        --name bv_traefik \
+        -p 8080:80 -p 8443:443 \
+        --network $network \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$here/traefik.toml:/etc/traefik/traefik.toml" \
+        -l traefik.docker.network=$network \
+        -l traefik.enable="True" \
+        -l traefik.traefik.frontend.rule='PathPrefixStrip: /traefik' \
+        -l traefik.traefik.protocol=http \
+        -l traefik.traefik.port=8080 \
+        traefik
+    traefik=`docker ps -a --filter 'name=bv_traefik' --format '{{ .ID }}'`
+fi
+
+
+postgres=`docker ps -a --filter 'name=bv_postgres' --format '{{ .ID }}'`
+if [ -z "$postgres" ]; then
+    echo 'Creating bv_postgres container'
+    docker create \
+        --name bv_postgres \
+        --hostname bv_postgres \
+        --network $network \
+        -v bv_services:/bv_services \
+        $postgres_image
+    postgres=`docker ps -a --filter 'name=bv_postgres' --format '{{ .ID }}'`
+fi
+
+bv_admin=`docker ps -a --filter 'name=bv_admin' --format '{{ .ID }}'`
+if [ -z "$bv_services" ]; then
+    echo 'Creating bv_admin container'
+    docker create \
+        --name bv_admin \
+        --hostname bv_admin \
+        --network $network \
+        -v bv_services:/bv_services \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v $here/bv_rest/bv_rest:/bv_services/src/bv_rest \
+        -v $here/bv_admin/bv_admin:/bv_services/src/bv_admin \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -l traefik.docker.network=$network \
+        -l traefik.enable="True" \
+        -l traefik.basic.frontend.rule='PathPrefixStrip: /admin' \
+        -l traefik.basic.protocol=http \
+        -l traefik.basic.port=80 \
+        $admin_image
+    bv_admin=`docker ps -a --filter 'name=bv_admin' --format '{{ .ID }}'`
+    #links:
+    #- bv_postgres
+fi

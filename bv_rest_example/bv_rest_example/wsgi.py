@@ -1,8 +1,6 @@
 '''This is the WSGI entry point for bv_auth
 '''
 
-from functools import partial
-import os
 import os.path as osp
 
 from flask import Flask

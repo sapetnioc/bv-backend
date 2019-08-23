@@ -1,73 +1,73 @@
 version: '3.7'
 
 networks:
-  web:
+  bv_services:
     external: true
 
 services:
-  bv_proxy:
-    container_name: bv_proxy
+  bv_traefik:
+    container_name: bv_traefik
     image: traefik
     ports:
-      - "80:80" 
-      - "443:443"
+      - "8080:80" 
+      - "8443:443"
     networks:
-      - web
+      - bv_services
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik.toml:/etc/traefik/traefik.toml
-      - ./acme.jso:/etc/traefik/acme.json
-      - /etc/letsencrypt/live/cointepas.net/privkey.pem:/etc/traefik/privkey.pem
-      - /etc/letsencrypt/live/cointepas.net/fullchain.pem:/etc/traefik/fullchain.pem
+      #- ./acme.jso:/etc/traefik/acme.json
+      #- /etc/letsencrypt/live/cointepas.net/privkey.pem:/etc/traefik/privkey.pem
+      #- /etc/letsencrypt/live/cointepas.net/fullchain.pem:/etc/traefik/fullchain.pem
     labels:
-        traefik.docker.network: web
+        traefik.docker.network: bv_services
         traefik.enable: true
         traefik.traefik.frontend.rule: "PathPrefixStrip: /traefik"
         traefik.traefik.port: 8080
         traefik.traefik.protocol: http
       
 
-  bv_postgres:
-    container_name: bv_postgres
-    image: bv_postgres
-    build:
-        context: ./bv_postgres
-    hostname: bv_postgres
-    volumes:
-        - bv_services:/bv_services
-    networks:
-      - web
+  #bv_postgres:
+    #container_name: bv_postgres
+    #image: bv_postgres
+    #build:
+        #context: ./bv_postgres
+    #hostname: bv_postgres
+    #volumes:
+        #- bv_services:/bv_services
+    #networks:
+      #- web
   
-  bv_auth:
-    container_name: bv_auth
-    image: bv_auth
-    build:
-        context: ./bv_auth
-    hostname: bv_auth
-    volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
-        - bv_services:/bv_services
-        - ./bv_rest/bv_rest:/tmp/bv_rest # DEBUG
-        - ./bv_auth/bv_auth:/tmp/bv_auth # DEBUG
-    links:
-    - bv_postgres
-    labels:
-        traefik.docker.network: web
-        traefik.enable: true
-        traefik.basic.frontend.rule: "PathPrefixStrip: /auth"
-        traefik.basic.port: 80
-        traefik.basic.protocol: http
-    networks:
-      - web
+  #bv_auth:
+    #container_name: bv_auth
+    #image: bv_auth
+    #build:
+        #context: ./bv_auth
+    #hostname: bv_auth
+    #volumes:
+        #- /var/run/docker.sock:/var/run/docker.sock
+        #- bv_services:/bv_services
+        #- ./bv_rest/bv_rest:/tmp/bv_rest # DEBUG
+        #- ./bv_auth/bv_auth:/tmp/bv_auth # DEBUG
+    #links:
+    #- bv_postgres
+    #labels:
+        #traefik.docker.network: web
+        #traefik.enable: true
+        #traefik.basic.frontend.rule: "PathPrefixStrip: /auth"
+        #traefik.basic.port: 80
+        #traefik.basic.protocol: http
+    #networks:
+      #- web
 
-  bv_rest_example:
-    container_name: bv_rest_example
-    image: bv_rest_example
-    build:
-        context: ./bv_rest_example
-    hostname: bv_rest_example
-    networks:
-      - web
+  #bv_rest_example:
+    #container_name: bv_rest_example
+    #image: bv_rest_example
+    #build:
+        #context: ./bv_rest_example
+    #hostname: bv_rest_example
+    #networks:
+      #- web
 
-volumes:
-    bv_services:
+#volumes:
+    #bv_services:

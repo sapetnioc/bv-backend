@@ -8,6 +8,7 @@ import traceback
 import typing
 import uuid
 
+from decorator import decorator
 from flask import (jsonify, request, abort, make_response,
                    render_template_string, send_from_directory,
                    has_request_context)
@@ -89,83 +90,76 @@ class RestAPI:
         def __init__(self, api, path):
             self.api = api
             self.path = path
-            self.param_in_body = False
             
-        def __call__(self, function=None, 
-                     param_in_body=False):
-            if function is None:
-                self.param_in_body = param_in_body
-                return self
-            else:
-                self.id = str(uuid.uuid4())
-                http_method = function.__name__
-                if http_method not in ('get', 'post', 'put', 'delete'):
-                    raise NameError('%s is not a valid function name to guess HTTP method, use get, post, put or delete.' % http_method)        
-                if getattr(self.path, http_method) is not None:
-                    raise NameError('A function is already defined for HTTP method %s on route %s' % (method, self.path))
-                
-                function.param_in_body = self.param_in_body
-                setattr(self.path, http_method, function)
-                
-                argspec = inspect.getfullargspec(function)
-                json_args = [i for i in argspec.args if i not in self.path.path_parameters]
-                function.json_args = json_args
-                function.path_parameters = self.path.path_parameters
-                
-                @self.api.flask_app.route(self.path.path, 
-                                          endpoint=self.id,
-                                          methods=[http_method.upper(), 'OPTIONS'])
-                @wraps(function)
-                def wrapper(**kwargs):
-                    if request.method == 'OPTIONS':
-                        # Handle options is necessary to allow web pages that
-                        # are not on the same server (e.g. local pages) to use 
-                        # the API. See 
-                        # https://www.html5rocks.com/en/tutorials/cors/
-                        acrh = request.headers['Access-Control-Request-Headers']
-                        response = make_response('', 200)
-                        response.headers['Access-Control-Allow-Origin'] = '*'
-                        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST'
-                        response.headers['Access-Control-Allow-Headers'] = acrh
-                    else:
+        def __call__(self, function):
+            self.id = str(uuid.uuid4())
+            http_method = function.__name__
+            if http_method not in ('get', 'post', 'put', 'delete'):
+                raise NameError('%s is not a valid function name to guess HTTP method, use get, post, put or delete.' % http_method)        
+            if getattr(self.path, http_method) is not None:
+                raise NameError('A function is already defined for HTTP method %s on route %s' % (method, self.path))
+            
+            function.param_in_body = getattr(function, 'param_in_body', False)
+            setattr(self.path, http_method, function)
+            
+            argspec = inspect.getfullargspec(function)
+            json_args = [i for i in argspec.args if i not in self.path.path_parameters]
+            function.json_args = json_args
+            function.path_parameters = self.path.path_parameters
+            
+            @self.api.flask_app.route(self.path.path, 
+                                        endpoint=self.id,
+                                        methods=[http_method.upper(), 'OPTIONS'])
+            def wrapper(**kwargs):
+                if request.method == 'OPTIONS':
+                    # Handle options is necessary to allow web pages that
+                    # are not on the same server (e.g. local pages) to use 
+                    # the API. See 
+                    # https://www.html5rocks.com/en/tutorials/cors/
+                    acrh = request.headers['Access-Control-Request-Headers']
+                    response = make_response('', 200)
+                    response.headers['Access-Control-Allow-Origin'] = '*'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST'
+                    response.headers['Access-Control-Allow-Headers'] = acrh
+                else:
+                    try:
+                        response = None
+                        args = ()
                         try:
-                            response = None
-                            args = ()
-                            try:
-                                if function.param_in_body:
-                                    args = (request.get_json(force=True),)
-                                elif function.json_args:
-                                    kwargs.update(request.get_json(force=True))
-                            except Exception as e:
-                                error = {
-                                    'message': 'Request does not contain valid JSON',
-                                }
-                                response = make_response(error, 400)
-                            if response is None:
-                                result = function(*args, **kwargs)
-                                try:
-                                    response = jsonify(result)
-                                except Exception as e:
-                                    error = {
-                                        'message': 'Value cannot be converted to JSON (%s): %s' % (str(e), repr(result)),
-                                        'traceback': traceback.format_exc(),
-                                    }
-                                    response = make_response(error, 500)
-                        except HTTPException as e:
-                            error = {
-                                'message': str(e),
-                            }
-                            response = make_response(error, e.code)
+                            if function.param_in_body:
+                                args = (request.get_json(force=True),)
+                            elif function.json_args:
+                                kwargs.update(request.get_json(force=True))
                         except Exception as e:
                             error = {
-                                'message': '%s: %s' % (e.__class__.__name__, str(e)),
-                                'traceback': traceback.format_exc(),
+                                'message': 'Request does not contain valid JSON',
                             }
-                            response = make_response(error, 500)
-                    response.headers['Access-Control-Allow-Origin'] = '*'
-                    return response
-                
-                return function
+                            response = make_response(error, 400)
+                        if response is None:
+                            result = function(*args, **kwargs)
+                            try:
+                                response = jsonify(result)
+                            except Exception as e:
+                                error = {
+                                    'message': 'Value cannot be converted to JSON (%s): %s' % (str(e), repr(result)),
+                                    'traceback': traceback.format_exc(),
+                                }
+                                response = make_response(error, 500)
+                    except HTTPException as e:
+                        error = {
+                            'message': str(e),
+                        }
+                        response = make_response(error, e.code)
+                    except Exception as e:
+                        error = {
+                            'message': '%s: %s' % (e.__class__.__name__, str(e)),
+                            'traceback': traceback.format_exc(),
+                        }
+                        response = make_response(error, 500)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                return response
+            
+            return function
 
     def __init__(self, flask_app, title, description, version):
         self.flask_app = flask_app
@@ -187,26 +181,31 @@ class RestAPI:
         return self.Operation(self, path_obj)
     
     def require_role(self, role):
-        def decorator(function):
-            function.has_security = True
-            @wraps(function)
-            def wrapper(*args, **kwargs):
-                if role not in get_roles():
-                    abort(403)
-                return function(*args, **kwargs)
-            return self.may_abort(401)(self.may_abort(403)(wrapper))
-        return decorator
+        @decorator
+        def wrapper(function, *args, **kwargs):
+            if role not in get_roles():
+                abort(403)
+            return function(*args, **kwargs)
+        result = self.may_abort(401)(self.may_abort(403)(wrapper))
+        result.has_security = True
+        return result
             
     def may_abort(self, http_code):
-        def decorator(function):
+        def may_abort_decorator(function):
             if http_code not in HTTP_STATUS_CODES:
                 raise ValueError(f'Invalid HTTP code: {http_code}')
             codes = getattr(function, 'may_abort', [])
             codes.append(http_code)
             function.may_abort = codes
             return function
-        return decorator
+        return may_abort_decorator
         
+    @staticmethod
+    def param_in_body(function):
+        function.param_in_body = True
+        return function
+
+
     @property
     def open_api(self):
         result = OrderedDict([

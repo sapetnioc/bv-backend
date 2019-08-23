@@ -1,0 +1,31 @@
+#!/bin/sh
+
+all=
+images=
+while [ $# -gt 0 ] 
+do
+  key="$1"
+
+  case $key in
+    -a|--all)
+      all=yes
+      shift # past argument
+      ;;
+      
+    -i|--images)
+      images=yes
+      shift # past argument
+      ;;
+  esac
+done
+
+docker rm --force bv_admin bv_postgres bv_traefik
+docker volume rm bv_services
+docker network rm bv_services
+if [ -n "$all" -o -n "$images" ]; then
+    docker rmi bv_admin bv_postgres bv_rest
+fi
+
+if [ -n "$all" ]; then
+    docker rmi traefik python:3.7-alpine postgres:11-alpine
+fi
