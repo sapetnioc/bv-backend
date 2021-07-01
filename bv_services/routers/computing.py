@@ -11,7 +11,7 @@ class NewComputingResource(BaseModel):
 class ComputingResource(NewComputingResource):
     id: UUID
 
-@router.get('/', tags=['computing'],
+@router.get('/',
          summary='List computing resources',
          response_model=list[ComputingResource])
 async def list_computing():
@@ -21,7 +21,7 @@ async def list_computing():
     raise HTTPException(status_code=404, detail='Not implemented')
 
 
-@router.get('/{computing_id}', tags=['computing'],
+@router.get('/{computing_id}',
          summary='Info on computing resource',
          response_model=ComputingResource)
 async def computing_resource():
@@ -31,7 +31,7 @@ async def computing_resource():
     raise HTTPException(status_code=404, detail='Not implemented')
 
 
-@router.post('/', tags=['computing'],
+@router.post('/', 
           summary='Add computing resource',
           response_model=UUID)
 async def add_computing(computing_resource: NewComputingResource):
@@ -41,7 +41,7 @@ async def add_computing(computing_resource: NewComputingResource):
     raise HTTPException(status_code=404, detail='Not implemented')
 
 
-@router.delete('/computing/{computing_id}', tags=['computing'],
+@router.delete('/computing/{computing_id}',
             summary='Remove a computing resource')
 async def remove_computing(computing_id: str):
     raise HTTPException(status_code=404, detail='Not implemented')
