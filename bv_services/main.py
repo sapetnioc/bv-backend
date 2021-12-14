@@ -6,7 +6,7 @@ tags_metadata = [
     {
         "name": "computing",
         "title": "Computing",
-        "description": "Operation regarding computing resoureces.",
+        "description": "Operation regarding computing resources.",
     },
 ]
 

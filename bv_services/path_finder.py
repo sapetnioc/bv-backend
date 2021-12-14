@@ -16,6 +16,7 @@ def path(type='file', **kwargs):
                  metadata=metadata,
                  default=undefined)
 
+
 class BIDSFolder(Enum):
     sourcedata = 'sourcedata'
     rawdata = 'rawdata'
