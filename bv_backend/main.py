@@ -12,7 +12,7 @@ tags_metadata = [
 
 
 app = FastAPI(
-    title='BrainVISA Services',
+    title='BrainVISA Backend',
     description='Services for remote parallel neuroimaging processing',
     version='0.0.0')
 

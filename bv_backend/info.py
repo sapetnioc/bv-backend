@@ -11,7 +11,7 @@ __version__ = '{}.{}.{}{}'.format(version_major,
                                   version_micro,
                                   version_extra)
 # Main setup parameters
-NAME = 'bv_services'
+NAME = 'bv_backend'
 DESCRIPTION = 'Test project'
 VERSION = __version__
 LICENSE='unknown'

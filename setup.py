@@ -1,14 +1,11 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 from setuptools import setup
 
 setup(
-    name='bv_services',
+    name='bv-backend',
     description='description',
     long_description='',
     license='',
-    # package_dir = {'': 'python'},
-    packages=['bv_services'],
+    packages=['bv_backend'],
     install_requires=['fastapi', 'uvicorn[standard]', "jinja2"],
 )
