@@ -8,7 +8,7 @@ setup(
     description='description',
     long_description='',
     license='',
-    package_dir = {'': 'python'},
+    # package_dir = {'': 'python'},
     packages=['bv_services'],
     install_requires=['fastapi', 'uvicorn[standard]'],
 )
