@@ -16,10 +16,12 @@ app = FastAPI(
     description='Services for remote parallel neuroimaging processing',
     version='0.0.0')
 
+
 app.include_router(
     computing.router,
     prefix="/computing",
     tags=["computing"])
+
 
 app.include_router(
     controller.router,

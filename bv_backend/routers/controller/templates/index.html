@@ -1,6 +1,44 @@
+<!DOCTYPE html>
 <html>
+    <head>
+        <title>Controller test</title>
+    </head>
     <body>
-        <h1>Test</h1>
-        {{value}}
+        <h1>Controller test</h1>
+        <form action="">
+            <input type="text" id="messageText" autocomplete="off" 
+             oninput="inputChanged(event)" onfocusout="inputFocusOut(event)"/>
+        </form>
+        <script>
+            var timer;
+            var input;
+            var ws = new WebSocket("{{url_for('websocket')}}");
+            console.log(ws);
+            //ws.onmessage = function(event) {
+            //    var messages = document.getElementById('messages')
+            //    var message = document.createElement('li')
+            //    var content = document.createTextNode(event.data)
+            //    message.appendChild(content)
+            //    messages.appendChild(message)
+            //};
+            function inputChanged(event) {
+                if (timer !== undefined) {
+                    clearTimeout(timer);
+                }
+                input = event.target;
+                timer = setTimeout(inputTimeout, 3000)
+            }
+            function inputTimeout() {
+                ws.send(JSON.stringify({"id": input.id, "value": input.value}))
+                timer = undefined;
+            }
+            function inputFocusOut(event) {
+                if (timer !== undefined) {
+                    clearTimeout(timer);
+                    input = event.target;
+                    inputTimeout();
+                    }
+            }
+        </script>
     </body>
 </html>

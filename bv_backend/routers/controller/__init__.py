@@ -1,6 +1,6 @@
 import os
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -13,3 +13,12 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "value": "a simple value"})
 
 
+@router.websocket("/ws")
+async def websocket(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        try:
+            data = await websocket.receive_json()
+            print('!websocket!', data, flush=True)
+        except WebSocketDisconnect:
+            break
