@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from .routers import computing
+from .routers import computing, controller
 
 tags_metadata = [
     {
@@ -20,3 +20,8 @@ app.include_router(
     computing.router,
     prefix="/computing",
     tags=["computing"])
+
+app.include_router(
+    controller.router,
+    prefix="/controller",
+    tags=["html"])
