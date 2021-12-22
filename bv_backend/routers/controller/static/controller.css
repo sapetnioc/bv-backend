@@ -1,0 +1,64 @@
+.collapsible {
+    color: white;
+    float: left;
+    margin-right: 5px;
+    grid-column-start: 1; 
+    grid-column-end: span 2;
+    width: 100%;
+}
+
+.collapsible > button:hover {
+    background-color: #555;
+}
+  
+.collapsible:not(.closed) > button:after {
+    content: '▼';
+}
+  
+.collapsible.closed > button:after {
+    content: "▶";
+}
+  
+.collapsible.closed .content {
+    display: none;
+}
+
+.collapsible > button {
+    background-color: #777;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+}
+
+.controller_label {
+    grid-column: 1;
+}
+
+.controller_item {
+    grid-column: 2;
+}
+  
+.controller {
+    display: grid;
+    padding: 0.1em 0.3em;
+    /* overflow: hidden; */
+    background-color: #f1f1f1;
+    grid-template-columns: min-content 1fr;
+    grid-gap: 0.5em;
+}
+
+/* .controller.settings label       { text-align:right; }
+.controller.settings label:after { content: ":"; } */
+
+.controller_list {
+    display: grid;
+    padding: 0 18px;
+    grid-template-columns: repeat(10, 9.5%);
+    grid-gap: 0.5em;
+}
+  

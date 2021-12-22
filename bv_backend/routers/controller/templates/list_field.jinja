@@ -1,0 +1,8 @@
+<div class="collapsible">
+    <button>{{cjinja.controller.metadata(field, 'label', field.name)}}</button>
+    <div class="content controller_list" id="{{cjinja.id}}.{{field.name}}">
+    {% for i in range(20) -%}
+    <input id="{{cjinja.id}}.{{field.name}}[{{i}}]"/>
+    {%- endfor %}
+   </div> 
+</div>

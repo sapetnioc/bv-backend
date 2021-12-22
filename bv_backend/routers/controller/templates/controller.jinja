@@ -1,0 +1,16 @@
+{% macro form(cjinja) -%}
+<form class="controller">
+    {% for field in cjinja.controller.fields() %}
+    {% include cjinja.field_jinja(field) with context %}
+    {% endfor %}
+</form>
+<script>
+var ws = new WebSocket("{{url_for('websocket', id=cjinja.id)}}");
+ws.onmessage = function(event) {
+    let data = JSON.parse(event.data);
+    let span_id = "{{cjinja.id}}." + data["attribute"];
+    let span = document.getElementById(span_id);
+    span.innerHTML = data["value"];
+};
+</script>
+{%- endmacro %}

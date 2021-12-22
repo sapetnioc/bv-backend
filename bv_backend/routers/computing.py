@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, constr
@@ -13,7 +14,7 @@ class ComputingResource(NewComputingResource):
 
 @router.get('/',
          summary='List computing resources',
-         response_model=list[ComputingResource])
+         response_model=List[ComputingResource])
 async def list_computing():
     '''
     List all computing resources
